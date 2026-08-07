@@ -174,14 +174,27 @@ BRAND_THEME = {
 }
 
 # Formateo de montos estilo ARG ($1.234.567) dentro de ECharts (lado navegador).
-_FMT_JS = "function(v){ if (typeof v !== 'number') return v; return '$' + v.toLocaleString('es-AR'); }"
+# Robusto para los tres contextos donde se usa: axisLabel (recibe el número),
+# label de barra (recibe un objeto params con .value) y tooltip valueFormatter.
+_FMT_JS = (
+    "function(p){"
+    "  var v = (p && typeof p === 'object' && p.value != null) ? p.value : p;"
+    "  if (typeof v !== 'number' || isNaN(v)) return v;"
+    "  return '$' + Math.round(v).toLocaleString('es-AR');"
+    "}"
+)
 VAL_FMT = JsCode(_FMT_JS)   # tooltip valueFormatter
-AX_FMT = JsCode(_FMT_JS)    # axisLabel / labels
+AX_FMT = JsCode(_FMT_JS)    # axisLabel
+LBL_FMT = JsCode(_FMT_JS)   # label de barras (formatter recibe params, no el valor)
 
+# Tooltip del mapa: provincias sin juicios (sin dato o valor 0) muestran "Sin Juicios"
+# en lugar de $NaN / $0.
 TT_PROVINCIA = JsCode(
     "function(p){"
     "  var nm = (p.data && p.data.display) ? p.data.display : (p.name || '');"
-    "  var v = (typeof p.value === 'number') ? '$' + Math.round(p.value).toLocaleString('es-AR') : '';"
+    "  var v = (typeof p.value === 'number' && !isNaN(p.value) && p.value > 0)"
+    "    ? '$' + Math.round(p.value).toLocaleString('es-AR')"
+    "    : 'Sin Juicios';"
     "  return '<b>' + nm + '</b><br/>' + v;"
     "}"
 )
@@ -576,7 +589,7 @@ def _opts_jur(df, cats):
                 "data": data,
                 "barWidth": 14,
                 "itemStyle": {"color": GRAD_H, "borderRadius": [0, 4, 4, 0]},
-                "label": {"show": True, "position": "right", "formatter": AX_FMT, "color": "#667085"},
+                "label": {"show": True, "position": "right", "formatter": LBL_FMT, "color": "#667085"},
             }
         ],
     }
@@ -671,7 +684,7 @@ def _opts_estado(df):
                 "data": data,
                 "barWidth": "45%",
                 "itemStyle": {"color": GRAD_V, "borderRadius": [4, 4, 0, 0]},
-                "label": {"show": True, "position": "top", "formatter": AX_FMT, "color": "#667085"},
+                "label": {"show": True, "position": "top", "formatter": LBL_FMT, "color": "#667085"},
             }
         ],
     }
